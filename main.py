@@ -9,7 +9,7 @@ import datetime as dt
 userName = os.getenv('USERNAME')
 password = os.getenv('PASSWORD')
 studentId = os.getenv('STUDENTID')
-
+print(password)
 
 loginUrl = 'https://portal.yamagata-u.ac.jp/Account/Login?ReturnUrl=%2F'
 studyTimesUrl = 'https://portal.yamagata-u.ac.jp/SelfStudy/StudyTimes'
