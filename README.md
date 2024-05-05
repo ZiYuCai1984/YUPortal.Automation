@@ -8,5 +8,5 @@ A project for automated updates みずから学ぶ　in Yu Portal.
 
 ### Get start
 
-TODO  　
+TODO  
 
