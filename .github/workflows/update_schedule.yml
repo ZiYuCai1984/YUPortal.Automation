@@ -1,0 +1,22 @@
+name: Update schedule
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 22 * * *'
+
+jobs:
+  update_schedule:
+    runs-on: ubuntu-latest
+    steps:
+    - run: git clone https://${{ secrets.TOKEN }}@github.com/${{ github.repository }}
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12.3'
+
+    - run: |
+        pip install -r requirements.txt
+        python update_schedule.py
+      working-directory: ${{ github.event.repository.name }}
+      env:
+        TOKEN: ${{ secrets.TOKEN }}

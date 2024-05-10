@@ -1,11 +1,11 @@
-name: CI
+name: Auto update
 on:
   workflow_dispatch:
   schedule:  
-    - cron: '0 22 * * *'
+    - cron: '17 4 * * *'
 
 jobs:
-  build:
+  auto_update:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -14,13 +14,9 @@ jobs:
       with:
         python-version: '3.12.3' 
     
-    - run: pip install pytz
-    
-    - run: pip install requests
-
-    - run: python main.py
+    - run: |
+        pip install -r requirements.txt
+        python update.py
       env:
         USERNAME: ${{ secrets.USERNAME }}
         PASSWORD: ${{ secrets.PASSWORD }}
-        STUDENTID: ${{ secrets.STUDENTID }}
-          
