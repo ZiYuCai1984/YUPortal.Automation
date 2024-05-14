@@ -1,6 +1,6 @@
 ## YUPortal.Automation
 
-A project for automated updates みずから学ぶ in Yu Portal.Automatically update random data at random times every day.
+A project for automated updates みずから学ぶ.
 
 ### Build status🚀
 
