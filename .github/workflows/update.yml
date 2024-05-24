@@ -2,7 +2,7 @@ name: Auto update
 on:
   workflow_dispatch:
   schedule:  
-    - cron: '54 1 * * *'
+    - cron: '47 4 * * *'
 
 jobs:
   auto_update:
