@@ -1,11 +1,11 @@
 import requests
 import os
 import re
-
 import pytz
 import random
+import json
 import datetime as dt
-
+from urllib.parse import quote
 from datetime import datetime, timedelta
 
 userName = os.getenv('USERNAME')
@@ -51,6 +51,7 @@ def postStudyRecord(loginPostCookies: any,
                   json=postData,
                   cookies=loginPostCookies,
                   verify=False)
+
     return
 
 
@@ -88,24 +89,31 @@ def newActivity(typeId: int, during: int):
 
 def createActivityList(isWeekday: bool) -> list:
     if isWeekday:
+        # !WARNING Bug, it needs to be in units of one hour
         sleepMorning = random.randint(6, 8)
         sleepNight = random.randint(1, 2)
-        otherStudy = random.randint(1, 3)
+        otherStudy1 = random.randint(0, 1)
+        otherStudy2 = random.randint(0, 1)
         studySelf1 = random.randint(0, 1)
-        studySelf2 = random.randint(1, 2)
-        circle = random.randint(0, 2)
+        studySelf2 = random.randint(0, 1)
+        studySelf3 = random.randint(0, 1)
+        circle = random.randint(0, 1)
     else:
         sleepMorning = random.randint(5, 7)
         sleepNight = random.randint(0, 2)
-        otherStudy = random.randint(3, 5)
+        otherStudy1 = random.randint(2, 3)
+        otherStudy2 = random.randint(1, 2)
         studySelf1 = random.randint(0, 1)
         studySelf2 = random.randint(0, 1)
+        studySelf3 = random.randint(0, 1)
         circle = random.randint(2, 4)
 
     activityList = [
         newActivity(1, studySelf1),
         newActivity(1, studySelf2),
-        newActivity(2, otherStudy),
+        newActivity(1, studySelf3),
+        newActivity(2, otherStudy1),
+        newActivity(2, otherStudy2),
         newActivity(4, circle)
     ]
 
@@ -145,7 +153,7 @@ def getRandomMinutesTime(minutes: int) -> int:
     return random.randint(int(minutes / 6), minutes)
 
 
-def updateByActivityList(activityList: list):
+def getTimeListByActivityList(activityList: list):
     now = getTokyoTime()
 
     currentMidnight = dt.datetime(
@@ -191,14 +199,97 @@ def updateByActivityList(activityList: list):
     return timeList
 
 
+def getTimeListByActivityListAndClassTimeList(activityList: list, classTimeList: list):
+    currentHour = 0
+    removePendingNum = len(classTimeList) * 2
+
+    i = 0
+    while i < len(activityList):
+        during = activityList[i]['During']
+
+        if not during == 0:
+            currentHour += during
+
+            if not len(classTimeList) == 0:
+                # Need soft the time
+                classObj = classTimeList[0]
+                classTime = datetime.strptime(classObj['StartDate'], '%Y-%m-%dT%H:%M:%S')
+
+                hour = classTime.hour
+                if hour == 8:
+                    # !WARNING 8:50->9:00
+                    hour = 9
+
+                if currentHour >= hour:
+                    activityList.insert(i + 1, newActivity(3, 2))
+                    classTimeList.remove(classObj)
+        i += 1
+
+    i = len(activityList) - 1
+    while i >= 0:
+        if removePendingNum == 0:
+            break
+
+        typeId = activityList[i]['TypeId']
+        if typeId == 999:
+            activityList.pop(i)
+            removePendingNum -= 1
+        i -= 1
+
+    timeList = getTimeListByActivityList(activityList)
+
+    i = len(timeList) - 1
+    while i >= 0:
+        if timeList[i][0] == 3:
+            timeList.pop(i)
+        i -= 1
+
+    return timeList
+
+
+def getClassTimeList(loginPostCookies: any,
+                     studentId: str) -> list:
+    timeFormat = '%Y-%m-%dT%H:%M:%S+09:00'
+    safe = '/?=&'
+
+    now = getTokyoTime()
+    currentMidnight = quote(dt.datetime(
+        now.year,
+        now.month,
+        now.day).strftime(timeFormat), safe)
+
+    nextMidnight = quote(dt.datetime(
+        now.year,
+        now.month,
+        now.day + 1).strftime(timeFormat), safe)
+
+    currentStudyTimeUrl = f"{studyTimesUrl}?StudentId={studentId}&StartDate={currentMidnight}&EndDate={nextMidnight}"
+
+    data = json.loads(requests.get(url=currentStudyTimeUrl,
+                                   cookies=loginPostCookies,
+                                   verify=False).content)
+
+    classTimeList = []
+
+    for item in data:
+        if item['TypeId'] == 3:
+            classTimeList.append({'StartDate': item['StartDate'], 'EndDate': item['EndDate']})
+
+    return classTimeList
+
+
 def main():
     isWeekday = getIsWeekday()
-
     activityList = createActivityList(isWeekday)
 
-    timeList = updateByActivityList(activityList)
-
     loginPostCookies, requestToken, studentId = postLogin()
+
+    if not isWeekday:
+        timeList = getTimeListByActivityList(activityList)
+    else:
+        classTimeList = getClassTimeList(loginPostCookies=loginPostCookies,
+                                         studentId=studentId)
+        timeList = getTimeListByActivityListAndClassTimeList(activityList, classTimeList)
 
     for typeId, startTime, endTime in timeList:
         postStudyRecord(loginPostCookies=loginPostCookies,
